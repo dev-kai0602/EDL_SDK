@@ -7,7 +7,7 @@ Before anything, you should import it and instance the API with:
 ```python
 from edlclient.Library.api import *
 
-e = edl_api()
+e = EDL_API()
 ```
 
 After that, you should set your desired EDL options (those who starts with `--`), e.g. `--debugmode`. For this, you should use the `set_arg()` method, like this:
@@ -50,10 +50,10 @@ This example covers the basic (and probably most common) API usage, so check it 
 from edlclient.Library.api import *
 
 # Step 1
-e = edl_api()
+e = EDL_API()
 e.set_arg("--debugmode", True)
 if (e.init() == 1):
-	exit(1)
+    exit(1)
 
 # Step 2
 e.peek(0x100000, 80, "peek1.bin")
@@ -61,7 +61,7 @@ e.peek(0x100000, 80, "peek1.bin")
 # Step 3
 e.reset_arg("--debugmode")
 if (e.reinit() == 1):
-	exit(1)
+    exit(1)
 
 # Step 4
 e.peek(0x100080, 80, "peek2.bin")

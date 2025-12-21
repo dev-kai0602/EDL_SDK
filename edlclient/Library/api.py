@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from edl import EDL as Edl
+from .. import edl
 
 EDL_ARGS = {
     "--debugmode": False,
@@ -49,46 +49,102 @@ EDL_ARGS = {
     "<xmlstring>": None,
 }
 
-class edl_api:
+class EDL_API:
+    """ EDL API类
+
+    Args:
+        args (dict) = EDL_ARGS: 参数配置
+
+    """
+
     def __init__(self, args: dict = EDL_ARGS):
         self.edl = None
         self.status = 0
         self.args = {**args}
-        return
 
     def init(self) -> int:
-        self.edl = Edl(self.args)
+        """ 初始化EDL实例并运行
+
+        Return:
+            int: 状态码
+
+        """
+        self.edl = edl.EDL(self.args)
         self.status = self.edl.run()
         return self.status
 
-    def deinit(self) -> int:
-        if (self.edl != None):
+    def del_init(self) -> int:
+        """ 清理EDL实例
+
+        Return:
+            int: 状态码
+
+        """
+
+        if self.edl is not None:
             self.status = self.edl.exit()
             self.edl = None
+
         return self.status
 
     def reinit(self) -> int:
-        if (self.deinit() == 1):
+        """ 重新初始化EDL实例
+
+        Return:
+            int: 状态码
+
+        """
+
+        if self.del_init() == 0: # TODO: 原来此处为1
             return self.status
         return self.init()
 
     def set_arg(self, key: str, value, reset: bool = False):
-        if (not key in self.args):
-            return "Invalid key!"
+        """
+        设置参数值
 
-        if (reset):
+        Args:
+            key: 参数键
+            value: 参数值
+
+        Returns:
+            bool: 是否成功设置
+
+        """
+
+        if key not in self.args:
+            return 'Invalid key!'
+
+        if reset:
             value = EDL_ARGS[key]
 
         self.args[key] = value
-        if (self.edl != None):
-            self.edl.args = self.args
+        if self.edl is not None:
+            self.edl.args = self.args.copy()
+
         return self.args
 
-    def reset_arg(self, key: str):
+    def reset_arg(self, key: str) -> bool:
+        """重置参数为默认值
+
+        Args:
+            key (str): 参数键
+
+        Returns:
+            bool: 是否成功设置
+
+        """
         return self.set_arg(key, None, True)
 
     def __del__(self) -> int:
-        return self.deinit()
+        """ 析构函数自动清理
+
+        Return:
+            int: 状态码
+
+        """
+
+        return self.del_init()
 
     # ----- Actual API -----
 

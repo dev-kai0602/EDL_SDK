@@ -11,7 +11,7 @@ def dump():
     return os.system(f"cat {PEEK_OUTPUT} | xxd")
 
 def main():
-    e = edl_api()
+    e = EDL_API()
     e.set_arg("--loader", LOADER)
     e.set_arg("--debugmode", True)
 
@@ -30,7 +30,7 @@ def main():
     e.pbl("pbl.bin")
 
     e.reset()
-    return e.deinit()
+    return e.del_init()
 
 if (__name__ == "__main__"):
     main()
