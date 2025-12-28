@@ -25,7 +25,7 @@ def main():
     if (e.reinit() == 1):
         return 1
 
-    e.printgpt()
+    e.print_gpt()
 
     e.pbl("pbl.bin")
 

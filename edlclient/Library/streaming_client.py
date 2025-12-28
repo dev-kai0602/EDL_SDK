@@ -236,7 +236,7 @@ class streaming_client(metaclass=LogBase):
                     self.info("Reset succeeded.")
             elif cmd == "memtbl":
                 filename = options["<filename>"]
-                memtbl = self.streaming.settings.memtbl
+                memtbl = self.streaming.settings.save_memory_table_to_file
                 data = self.streaming.memread(memtbl[0], memtbl[1])
                 if data != b"":
                     with open(filename, "wb") as wf:
@@ -245,7 +245,7 @@ class streaming_client(metaclass=LogBase):
                 else:
                     self.error("Error on dumping memtbl")
             elif cmd == "secureboot":
-                value = self.streaming.mempeek(self.streaming.settings.secureboot)
+                value = self.streaming.mempeek(self.streaming.settings.secure_boot)
                 if value != -1:
                     is_secure = False
                     for area in range(0, 4):
