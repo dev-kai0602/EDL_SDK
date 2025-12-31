@@ -738,12 +738,12 @@ class QualcommDiagClient(metaclass=LogBase):
         self.encoding = encoding
 
         if self.enabled_log:
-            self.__logger.setLevel(loglevel)
+            self._logger.setLevel(loglevel)
             
             if loglevel == logging.DEBUG:
                 log_path = "log.txt"
                 fh = logging.FileHandler(log_path, encoding=self.encoding)
-                self.__logger.addHandler(fh)
+                self._logger.addHandler(fh)
 
         # 获取当前脚本的绝对目录
         current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -774,7 +774,7 @@ class QualcommDiagClient(metaclass=LogBase):
             self.nv_list[identifier] = name
 
     @staticmethod
-    def data_to_hex_ascii(data):
+    def data_to_hex_ascii(data) -> str:
         """
         将二进制数据转换为十六进制和ASCII混合的可读格式
 
@@ -805,7 +805,7 @@ class QualcommDiagClient(metaclass=LogBase):
         return res
 
     @staticmethod
-    def decode_status(data):
+    def decode_status(data) -> str:
         """
         解析状态码为可读描述
 
@@ -834,22 +834,21 @@ class QualcommDiagClient(metaclass=LogBase):
         else:
             return "Command accepted"
 
-    def connect(self, serial: bool = False):
+    def connect(self, serial: bool = False) -> bool:
         """
         建立与设备的连接
 
         Args:
-            serial: 是否使用串口连接（False表示USB连接）
+            serial (bool): 是否使用串口连接（False表示USB连接）
 
         Returns:
             连接成功返回True，否则返回False
 
         """
         if serial:
-            self.cdc = serial_class(loglevel=self.__logger.level, portconfig=self.port_config)
+            self.cdc = serial_class(self._logger.level if self.enabled_log else logging.DEBUG, portconfig=self.port_config) # TODO: 查看serial_class
         else:
-            self.cdc = usb_class(portconfig=self.port_config, loglevel=self.__logger.level)
-        self.hdlc = None
+            self.cdc = usb_class(portconfig=self.port_config, loglevel=self._logger.level if self.enabled_log else logging.DEBUG) # TODO: 查看usb_class
         if self.cdc.connect(self.ep_in, self.ep_out, self.port_name):
             self.hdlc = hdlc(self.cdc)
             data = self.hdlc.receive_reply(timeout=0)
@@ -857,107 +856,217 @@ class QualcommDiagClient(metaclass=LogBase):
         return False
 
     def disconnect(self):
+        """断开与设备的连接"""
         self.cdc.close(True)
 
-    def send(self, cmd):
+    def send(self, cmd): # TODO: 完善注解
+        """
+        发送命令到设备
+
+        Args:
+            cmd: 要发送的命令字节流
+
+        Returns:
+            设备响应数据
+
+        """
         if self.hdlc is not None:
             return self.hdlc.send_cmd_np(cmd)
+        return None
 
-    def cmd_info(self):
+    def cmd_info(self) -> str:
+        """获取命令信息并格式化输出"""
         reply = self.send(b"\x00")
         return self.data_to_hex_ascii(reply)
 
     def enforce_crash(self):
+        """强制设备崩溃（用于调试）"""
         # ./diag.py -nvwrite 1027,01 enable adsp log NV_MDSP_MEM_DUMP_ENABLED_I
         # ./diag.py -nvwrite 4399,01 enable download on reboot NV_DETECT_HW_RESET_I
         res = self.send(b"\x4B\x25\x03\x00")
-        print(self.decode_status(res))
+        if self.enabled_print:
+            print(self.decode_status(res))
+        return self.decode_status(res)
 
     def enter_downloadmode(self):
+        """进入下载模式"""
         res = self.send(b"\x3A")
         print(self.decode_status(res))
 
-    def enter_saharamode(self):
+    def enter_saharamode(self) -> bool:
+        """进入Sahara模式（EDL模式）
+
+            Return:
+                bool: 是否成功
+
+        """
         self.hdlc.receive_reply(timeout=0)
         res = self.send(b"\x4b\x65\x01\x00")
-        if res[0] == 0x4b:
-            print("Done, switched to edl")
-        else:
-            print("Error switching to edl. Try again.")
+        success: bool = False
+
+        if self.enabled_print:
+            if res[0] == 0x4b:
+                print("Done, switched to edl") # 已切换到EDL模式
+                success = True
+            else:
+                print("Error switching to edl. Try again.") # 切换到EDL模式失败，请重试
+                success = True
         self.disconnect()
 
-    def send_sp(self, sp="FFFFFFFFFFFFFFFFFFFE"):
-        if type(sp) == str:
+        return success
+
+    def send_sp(self, sp: str = "FFFFFFFFFFFFFFFFFFFE"): # TODO: 完善注解
+        """
+        发送安全密码（SP）
+
+        Args:
+            sp (str): 安全密码（默认"FFFFFFFFFFFFFFFFFFFE"）
+
+        Returns:
+            设备响应
+
+        """
+        if isinstance(sp, str):
             sp = unhexlify(sp)
         else:
             sp = bytes(sp)
+
         if len(sp) < 8:
-            print("SP length must be 8 bytes")
-            return
-        res = self.send(b"\x46" + sp)
+            if self.enabled_print:
+                print("SP length must be 8 bytes") # SP长度必须为8字节
+            return False
+
+        res = self.send(b"\x46" + sp)  # 对应DIAG_PASSWORD_F命令
         if res[0] != 0x46:
             res = self.send(b"\x25" + sp)
+
         elif res[0] == 0x46:
             if res[1] == 0x0:
-                print("Security Password is wrong")
+                if self.enabled_print:
+                    print("Security Password is wrong") # 安全密码错误
             elif res[1] == 0x1:
-                print("Security Password accepted.")
+                if self.enabled_print:
+                    print("Security Password accepted.") # 安全密码已接受
+
         elif res[0] != 0x25:
-            print(self.decode_status(res))
+            if self.enabled_print:
+                print(self.decode_status(res))
+
         return res
 
-    def send_spc(self, spc="303030303030"):
-        if type(spc) == str:
+    def send_spc(self, spc: str = "303030303030"):
+        """
+        发送服务编程代码（SPC）
+
+        Args:
+            spc: 服务编程代码（默认"303030303030"，即"000000"）
+
+        Returns:
+            设备响应
+
+        """
+        if isinstance(spc, str):
             spc = unhexlify(spc)
         else:
             spc = bytes(spc)
+
         if len(spc) < 6:
-            print("SPC length must be 6 bytes")
-            return
-        res = self.send(b"\x41" + spc)
+            if self.enabled_print:
+                print("SPC length must be 6 bytes") # SPC长度必须为6字节
+            return False
+
+        res = self.send(b"\x41" + spc) # 对应DIAG_SPC_F命令
         if res[0] != 0x41:
             print(self.decode_status(res))
         else:
             if res[1] == 0x0:
-                print("SPC is wrong")
+                print("SPC is wrong") # SPC错误
             elif res[1] == 0x1:
-                print("SPC accepted.")
+                print("SPC accepted.") # SPC已接受
         return res
 
-    def DecodeNVItems(self, nvitem):
-        if nvitem.status == 0x1:
-            return "Internal DMSS use"
-        elif nvitem.status == 0x2:
-            return "Unrecognized command"
-        elif nvitem.status == 0x3:
-            return "NV memory full"
-        elif nvitem.status == 0x4:
-            return "Command failed"
-        elif nvitem.status == 0x5:
-            return "Inactive Item"
-        elif nvitem.status == 0x6:
-            return "Bad Parameter"
-        elif nvitem.status == 0x7:
-            return "Item was read-only"
-        elif nvitem.status == 0x8:
-            return "Item not defined for this target"
-        elif nvitem.status == 0x9:
-            return "No more free memory"
-        elif nvitem.status == 0xA:
-            return "Internal use"
-        elif nvitem.status == 0x0:
-            return "OK"
-        return ""
+    @staticmethod
+    def decode_nvitems(nvitem):
+        """
+        解析NV项状态码
 
-    def print_nvitem(self, item):
-        res, nvitem = self.read_nvitem(item)
-        if res:
-            info = self.DecodeNVItems(nvitem)
+        Args:
+            nvitem: NV项对象
+
+        Returns:
+            状态描述字符串
+
+        """
+        match nvitem.status:
+            case 0x1:
+                return "Internal DMSS use"
+            case 0x2:
+                return "Unrecognized command"
+            case 0x3:
+                return "NV memory full"
+            case 0x4:
+                return "Command failed"
+            case 0x5:
+                return "Inactive Item"
+            case 0x6:
+                return "Bad Parameter"
+            case 0x7:
+                return "Item was read-only"
+            case 0x8:
+                return "Item not defined for this target"
+            case 0x9:
+                return "No more free memory"
+            case 0xA:
+                return "Internal use"
+            case 0x0:
+                return "OK"
+            case _:
+                return ""
+
+    def print_nvitem(self, item): # TODO: 完善注解
+        """
+        打印指定NV项的信息
+
+        Args:
+            item: NV项ID
+
+        """
+        if self.enabled_print:
+            res, nvitem = self.read_nvitem(item)
+            if res:
+                info = self.decode_nvitems(nvitem)
+                if res:
+                    if nvitem.name != "":
+                        ItemNumber = f"{hex(item)} ({nvitem.name}): "
+                    else:
+                        ItemNumber = hex(item) + ": "
+                    returnanswer = "NVItem " + ItemNumber + info
+                    print(returnanswer)
+                    if nvitem.status == 0:
+                        print("-----------------------------------------")
+                        print(self.data_to_hex_ascii(nvitem.data))
+                else:
+                    print(nvitem)
+            else:
+                print(nvitem)
+
+    def print_sub_nvitem(self, item, index: int): # TODO: 完善注解
+        """
+        打印指定子NV项的信息
+
+        Args:
+            item: NV项ID
+            index (int): 子项索引
+
+        """
+        if self.enabled_print:
+            res, nvitem = self.read_nvitemsub(item, index)
+            info = self.decode_nvitems(nvitem)
             if res:
                 if nvitem.name != "":
-                    ItemNumber = f"{hex(item)} ({nvitem.name}): "
+                    ItemNumber = f"{hex(item), hex(index)} ({nvitem.name}): "
                 else:
-                    ItemNumber = hex(item) + ": "
+                    ItemNumber = hex(item) + "," + hex(index) + ": "
                 returnanswer = "NVItem " + ItemNumber + info
                 print(returnanswer)
                 if nvitem.status == 0:
@@ -965,30 +1074,23 @@ class QualcommDiagClient(metaclass=LogBase):
                     print(self.data_to_hex_ascii(nvitem.data))
             else:
                 print(nvitem)
-        else:
-            print(nvitem)
 
-    def print_nvitemsub(self, item, index):
-        res, nvitem = self.read_nvitemsub(item, index)
-        info = self.DecodeNVItems(nvitem)
-        if res:
-            if nvitem.name != "":
-                ItemNumber = f"{hex(item), hex(index)} ({nvitem.name}): "
-            else:
-                ItemNumber = hex(item) + "," + hex(index) + ": "
-            returnanswer = "NVItem " + ItemNumber + info
-            print(returnanswer)
-            if nvitem.status == 0:
-                print("-----------------------------------------")
-                print(self.data_to_hex_ascii(nvitem.data))
-        else:
-            print(nvitem)
+    def backup_nvitems(self, filename: str, errorlog: str = ""): # TODO: log和print需处理
+        """
+        备份所有NV项到文件
 
-    def backup_nvitems(self, filename, errorlog=""):
+        Args:
+            filename: 备份文件路径
+            errorlog: 错误日志文件路径（为空则打印到控制台）
+
+        """
+        if not self.enabled_print:
+            print = null.null_print
+
         nvitems = []
         pos = 0
         old = 0
-        errors = ""
+        _errors = ""
         print("Dumping nvitems 0x0 to 0xFFFF.")
         for item in range(0, 0xFFFF):
             prog = int(float(pos) / float(0xFFFF) * float(100))
@@ -998,20 +1100,20 @@ class QualcommDiagClient(metaclass=LogBase):
             res, nvitem = self.read_nvitem(item)
             if res:
                 if nvitem.status != 0x5:
-                    nvitem.status = self.DecodeNVItems(nvitem)
+                    nvitem.status = self.decode_nvitems(nvitem)
                     nvitems.append(dict(id=nvitem.item, name=nvitem.name, data=hexlify(nvitem.data).decode("utf-8"),
                                         status=nvitem.status))
             else:
-                errors += nvitem + "\n"
+                _errors += nvitem + "\n"
             pos += 1
         js = json.dumps(nvitems)
         with open(filename, "w") as write_handle:
             write_handle.write(js)
         if errorlog == "":
-            print(errors)
+            print(_errors)
         else:
             with open(errorlog, "w") as write_handle:
-                write_handle.write(errors)
+                write_handle.write(_errors)
         print("Done.")
 
     def unpackdata(self, data):
@@ -1645,20 +1747,20 @@ class DiagTools(metaclass=LogBase):
             if os.path.exists(logfilename):
                 os.remove(logfilename)
             fh = logging.FileHandler(logfilename)
-            self.__logger.addHandler(fh)
-            self.__logger.setLevel(logging.DEBUG)
+            self._logger.addHandler(fh)
+            self._logger.setLevel(logging.DEBUG)
         else:
-            self.__logger.setLevel(logging.INFO)
+            self._logger.setLevel(logging.INFO)
 
         connected = False
         diag = None
         if self.vid is None or self.pid is None:
-            diag = QualcommDiagClient(loglevel=self.__logger.level, port_config=default_diag_vid_pid)
+            diag = QualcommDiagClient(loglevel=self._logger.level, port_config=default_diag_vid_pid)
             if self.serial:
                 diag.port_name = self.portname
             connected = diag.connect(self.serial)
         else:
-            diag = QualcommDiagClient(loglevel=self.__logger.level, port_config=[[self.vid, self.pid, self.interface]])
+            diag = QualcommDiagClient(loglevel=self._logger.level, port_config=[[self.vid, self.pid, self.interface]])
             if self.serial:
                 diag.port_name = self.portname
             connected = diag.connect(self.serial)
@@ -1708,7 +1810,7 @@ class DiagTools(metaclass=LogBase):
                     nvindex = int(args.nvindex, 16)
                 else:
                     nvindex = int(args.nvindex)
-                diag.print_nvitemsub(nvitem, nvindex)
+                diag.print_sub_nvitem(nvitem, nvindex)
             elif cmd == "nvwrite":
                 if args.data is None:
                     print("NvWrite requires data to write")
