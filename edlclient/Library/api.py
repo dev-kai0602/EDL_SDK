@@ -51,14 +51,16 @@ EDL_ARGS = {
 }
 
 class EDL_API:
-    """ EDL API类
-
-    Args:
-        args (dict) = EDL_ARGS: 参数配置
-
-    """
 
     def __init__(self, args=None, enabled_print: bool = False, enabled_log: bool = False):
+        """ EDL API类
+
+        Args:
+            args (dict) = EDL_ARGS: 参数配置
+            enabled_print (bool) = False: 是否打印
+            enabled_log (bool) = False: 是否开启日志功能:
+
+        """
         if args is None:
             args = EDL_ARGS
         self.edl = None

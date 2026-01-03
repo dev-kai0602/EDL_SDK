@@ -176,7 +176,7 @@ class EDL(metaclass=LogBase):
         self.imported = imported
         self.enabled_log = enabled_log
         self.serial = None
-        self.portname = None
+        self.port_name = None
         self.cdc = None
         self.sahara = None
         self.vid = None
@@ -301,7 +301,7 @@ class EDL(metaclass=LogBase):
         """
 
         while not self.cdc.connected:
-            self.cdc.connected = self.cdc.connect(portname=self.portname)
+            self.cdc.connected = self.cdc.connect(portname=self.port_name)
             if not self.cdc.connected:
                 self._stdout_write('.')
 
@@ -369,15 +369,15 @@ class EDL(metaclass=LogBase):
         interface = -1
 
         if vid != -1 and pid != -1:
-            portconfig = [[vid, pid, interface]]
+            port_config = [[vid, pid, interface]]
         else:
-            portconfig = default_ids
+            port_config = default_ids
 
         if self.args["--debugmode"] and self.enabled_log:
-            logfilename = "log.txt"
-            if os.path.exists(logfilename):
-                os.remove(logfilename)
-            self.fh = logging.FileHandler(logfilename)
+            log_file_name = "log.txt"
+            if os.path.exists(log_file_name):
+                os.remove(log_file_name)
+            self.fh = logging.FileHandler(log_file_name)
             self.__logger.addHandler(self.fh)
             self.__logger.setLevel(logging.DEBUG)
         else:
@@ -389,17 +389,17 @@ class EDL(metaclass=LogBase):
             self.serial = False
 
         if self.args["--port_name"]:
-            self.portname = self.args["--port_name"]
+            self.port_name = self.args["--port_name"]
             self.serial = True
         else:
-            self.portname = ""
+            self.port_name = ""
 
         if self.serial:
-            self.cdc = serial_class(loglevel=self.__logger.level, portconfig=portconfig)
+            self.cdc = serial_class(loglevel=self.__logger.level, portconfig=port_config)
         else:
             if self.args["--serial_number"]:
                 self.serial_number = self.args["--serial_number"]
-            self.cdc = usb_class(portconfig=portconfig, loglevel=self.__logger.level, serial_number=self.serial_number)
+            self.cdc = usb_class(portconfig=port_config, loglevel=self.__logger.level, serial_number=self.serial_number)
 
         self.sahara = sahara(self.cdc, loglevel=self.__logger.level)
 

@@ -1037,10 +1037,10 @@ class QualcommDiagClient(metaclass=LogBase):
                 info = self.decode_nvitems(nvitem)
                 if res:
                     if nvitem.name != "":
-                        ItemNumber = f"{hex(item)} ({nvitem.name}): "
+                        item_number = f"{hex(item)} ({nvitem.name}): "
                     else:
-                        ItemNumber = hex(item) + ": "
-                    returnanswer = "NVItem " + ItemNumber + info
+                        item_number = hex(item) + ": "
+                    returnanswer = "NVItem " + item_number + info
                     print(returnanswer)
                     if nvitem.status == 0:
                         print("-----------------------------------------")
@@ -1052,7 +1052,7 @@ class QualcommDiagClient(metaclass=LogBase):
 
     def print_sub_nvitem(self, item, index: int): # TODO: 完善注解
         """
-        打印指定子NV项的信息
+        打印指定子NV项的信息(当enabled_print为True时)
 
         Args:
             item: NV项ID
