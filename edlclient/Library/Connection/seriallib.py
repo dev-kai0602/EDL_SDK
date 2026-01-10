@@ -221,10 +221,10 @@ class SerialDevice(DeviceClass):
     def flush(self):
         return self.device.flush()
 
-    def usb_read(self, resplen=None, timeout=0):
-        if resplen is None:
-            resplen = self.device.in_waiting
-        if resplen <= 0:
+    def usb_read(self, resp_len=None, timeout=0):
+        if resp_len is None:
+            resp_len = self.device.in_waiting
+        if resp_len <= 0:
             self.info("Warning !")
         res = bytearray()
         loglevel = self.loglevel
@@ -233,13 +233,13 @@ class SerialDevice(DeviceClass):
         extend = res.extend
         if self.xml_read:
             info = self.device.read(6)
-            bytestoread = resplen - len(info)
+            bytestoread = resp_len - len(info)
             extend(info)
             if b"<?xml " in info:
                 while b"response " not in res or res[-7:] != b"</data>":
                     extend(epr(1))
                 return res
-        bytestoread = resplen
+        bytestoread = resp_len
         while len(res) < bytestoread:
             try:
                 val = epr(bytestoread)
@@ -264,10 +264,10 @@ class SerialDevice(DeviceClass):
                     return b""
 
         if loglevel == logging.DEBUG:
-            self.debug(inspect.currentframe().f_back.f_code.co_name + ":" + hex(resplen))
+            self.debug(inspect.currentframe().f_back.f_code.co_name + ":" + hex(resp_len))
             if self.loglevel == logging.DEBUG:
-                self.verify_data(res[:resplen], "RX:")
-        return res[:resplen]
+                self.verify_data(res[:resp_len], "RX:")
+        return res[:resp_len]
 
     def usb_write(self, data, data_pack_size=None):
         if data_pack_size is None:
@@ -276,7 +276,7 @@ class SerialDevice(DeviceClass):
         self.device.flush()
         return res
 
-    def usbreadwrite(self, data, resplen):
+    def usb_read_write(self, data, resplen):
         self.usb_write(data)  # size
         self.device.flush()
         res = self.usb_read(resplen)

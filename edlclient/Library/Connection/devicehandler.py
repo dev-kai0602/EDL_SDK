@@ -382,14 +382,56 @@ class DeviceClass(abc.ABC, metaclass=LogBase):
         pass
     
     @abc.abstractmethod
-    def usb_read(self, resplen=None, timeout=0):
+    def usb_read(self, resp_len: int | Noen = None, timeout: int = 0):
+        """ 抽象方法：底层USB数据读取。
+
+        Args:
+            resp_len (int | None): 期望读取的字节数，None使用maxsize默认值
+            timeout (int): 读取超时时间（毫秒），0表示无限等待
+
+        Returns:
+            bytes: 从USB接口读取的二进制数据
+
+        子类实现要求:
+            需处理读取超时、数据截断、总线断开等异常场景
+            
+        """
         pass
     
     @abc.abstractmethod
-    def ctrl_transfer(self, bmRequestType, bRequest, wValue, wIndex, data_or_wLength):
+    def ctrl_transfer(self, request_type: int, request: int, value: int,
+                      index: int, data_or_wLength: bytes | int) -> bytes | int:
+        """ 抽象方法：执行USB控制传输。
+
+        Args:
+            request_type (int): USB请求类型（方向、类型、接收者）
+            request (int): USB请求码
+            value (int): 请求参数值
+            index (int): 请求索引值
+            data_or_wLength (bytes | int): 发送的数据（OUT请求）或接收长度（IN请求）
+
+        Returns:
+            bytes | int: IN请求返回读取的数据，OUT请求返回发送的字节数
+
+        子类实现要求:
+            需严格遵循USB 2.0/3.0规范实现控制传输逻辑
+            
+        """
         pass
     
     @abc.abstractmethod
-    def usbreadwrite(self, data, resplen): # TODO: What`s this?
+    def usb_read_write(self, data: bytes, resplen: int) -> bytes: # TODO: What`s this?
+        """ 抽象方法：USB读写一体化操作（发送数据并立即读取响应）。
+
+        Args:
+            data (bytes): 待发送的请求数据
+            resplen (int): 期望读取的响应字节数
+
+        Returns:
+            bytes: 设备返回的响应数据
+
+        待确认:
+            该方法的具体业务逻辑需进一步明确（TODO）
+        """
         pass
     

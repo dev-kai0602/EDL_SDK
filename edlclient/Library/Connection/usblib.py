@@ -61,7 +61,7 @@ CDC_CMDS = {
     "SET_LINE_CODING": 0x20,
     "GET_LINE_CODING": 0x21,
     "SET_CONTROL_LINE_STATE": 0x22,
-    "SEND_BREAK": 0x23,  # wValue is break time
+    "SEND_BREAK": 0x23,  # value is break time
 }
 
 
@@ -175,7 +175,7 @@ class usb_class(DeviceClass):
         data = bytearray(linecode)
         wlen = self.device.ctrl_transfer(
             req_type, CDC_CMDS["SET_LINE_CODING"],
-            data_or_wLength=data, wIndex=1)
+            data_or_wLength=data, index=1)
         self.debug("Linecoding set, {}b sent".format(wlen))
 
     def set_break(self):
@@ -184,8 +184,8 @@ class usb_class(DeviceClass):
         recipient = 1  # 0:device, 1:interface, 2:endpoint, 3:other
         req_type = (txdir << 7) + (req_type << 5) + recipient
         wlen = self.device.ctrl_transfer(
-            bmRequestType=req_type, bRequest=CDC_CMDS["SEND_BREAK"],
-            wValue=0, data_or_wLength=0, wIndex=1)
+            request_type=req_type, request=CDC_CMDS["SEND_BREAK"],
+            value=0, data_or_wLength=0, index=1)
         self.debug("Break set, {}b sent".format(wlen))
 
     def set_control_line_state(self, RTS=None, DTR=None, isFTDI=False):
@@ -200,10 +200,10 @@ class usb_class(DeviceClass):
         req_type = (txdir << 7) + (req_type << 5) + recipient
 
         wlen = self.device.ctrl_transfer(
-            bmRequestType=req_type,
-            bRequest=1 if isFTDI else CDC_CMDS["SET_CONTROL_LINE_STATE"],
-            wValue=ctrlstate,
-            wIndex=1,
+            request_type=req_type,
+            request=1 if isFTDI else CDC_CMDS["SET_CONTROL_LINE_STATE"],
+            value=ctrlstate,
+            index=1,
             data_or_wLength=0)
         self.debug("Linecoding set, {}b sent".format(wlen))
 
@@ -376,23 +376,23 @@ class usb_class(DeviceClass):
         self.verify_data(bytearray(command), "TX:")
         return True
 
-    def usb_read(self, resplen=None, timeout=0):
+    def usb_read(self, resp_len=None, timeout=0):
         if timeout == 0:
             timeout = 1
-        if resplen is None:
-            resplen = self.maxsize
-        if resplen <= 0:
+        if resp_len is None:
+            resp_len = self.maxsize
+        if resp_len <= 0:
             self.info("Warning !")
         res = bytearray()
         loglevel = self.loglevel
-        buffer = self.buffer[:resplen]
+        buffer = self.buffer[:resp_len]
         epr = self.EP_IN.read
         extend = res.extend
-        while len(res) < resplen:
+        while len(res) < resp_len:
             try:
-                resplen = epr(buffer, timeout)
-                extend(buffer[:resplen])
-                if resplen == self.EP_IN.wMaxPacketSize:
+                resp_len = epr(buffer, timeout)
+                extend(buffer[:resp_len])
+                if resp_len == self.EP_IN.wMaxPacketSize:
                     break
             except usb.core.USBError as e:
                 error = str(e.strerror)
@@ -412,13 +412,13 @@ class usb_class(DeviceClass):
                     return b""
 
         if loglevel == logging.DEBUG:
-            self.debug(inspect.currentframe().f_back.f_code.co_name + ":" + hex(resplen))
+            self.debug(inspect.currentframe().f_back.f_code.co_name + ":" + hex(resp_len))
             if self.loglevel == logging.DEBUG:
-                self.verify_data(res[:resplen], "RX:")
-        return res[:resplen]
+                self.verify_data(res[:resp_len], "RX:")
+        return res[:resp_len]
 
-    def ctrl_transfer(self, bmRequestType, bRequest, wValue, wIndex, data_or_wLength):
-        ret = self.device.ctrl_transfer(bmRequestType=bmRequestType, bRequest=bRequest, wValue=wValue, wIndex=wIndex,
+    def ctrl_transfer(self, request_type, request, value, index, data_or_wLength):
+        ret = self.device.ctrl_transfer(request_type=request_type, request=request, value=value, index=index,
                                         data_or_wLength=data_or_wLength)
         return ret[0] | (ret[1] << 8)
 
@@ -442,7 +442,7 @@ class usb_class(DeviceClass):
         # port->flush()
         return res
 
-    def usbreadwrite(self, data, resplen):
+    def usb_read_write(self, data, resplen):
         self.usb_write(data)  # size
         # port->flush()
         res = self.usb_read(resplen)
@@ -603,7 +603,7 @@ class Scsi:
         brequest = 0xa0
         wvalue = 1
         '''
-        wValue:
+        value:
             0: Disable adb daemon
             1: Enable adb daemon
         '''
