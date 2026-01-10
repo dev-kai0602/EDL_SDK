@@ -133,7 +133,7 @@ class DeviceClass(abc.ABC, metaclass=LogBase):
         if length is None:
             length = self.maxsize
         
-        return self.usb_read(length, timeout) # TODO: 该方法似乎没实现
+        return self.usb_read(length, timeout)
     
     def read_dword(self, count: int = 1, little: bool = False) -> int | tuple[int]:
         """ 读取指定数量的DWORD（4字节）数据，支持大小端格式。
@@ -147,7 +147,7 @@ class DeviceClass(abc.ABC, metaclass=LogBase):
             
         """
         rev = "<" if little else ">"
-        value = self.usb_read(4 * count) # TODO: 该方法似乎未实现
+        value = self.usb_read(4 * count)
         data = unpack(rev + "I" * count, value)
         
         if count == 1:

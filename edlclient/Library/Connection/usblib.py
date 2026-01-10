@@ -11,23 +11,18 @@ import logging
 from binascii import hexlify
 from ctypes import c_void_p, c_int
 from enum import Enum
+from struct import pack
 
 import usb.backend.libusb0
 import usb.core  # pyusb
 import usb.util
 
-try:
-    from edlclient.Library.utils import *
-except:
-    from Library.utils import *
+from edlclient.Library.utils import *
+from edlclient.Library.Connection.device_handler import DeviceClass
+
 if not is_windows():
     import usb.backend.libusb1
-from struct import pack
 
-try:
-    from edlclient.Library.Connection.device_handler import DeviceClass
-except:
-    from Library.Connection.devicehandler import DeviceClass
 USB_DIR_OUT = 0  # to device
 USB_DIR_IN = 0x80  # to host
 
