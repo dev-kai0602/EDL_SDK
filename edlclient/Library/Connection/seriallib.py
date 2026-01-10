@@ -140,10 +140,10 @@ class SerialDevice(DeviceClass):
                     ids.append(port.device)
         return sorted(ids)
 
-    def set_line_coding(self, baudrate=None, parity=0, databits=8, stopbits=1):
-        self.device.baudrate = baudrate
+    def set_line_coding(self, baud_rate=None, parity=0, databits=8, stop_bits=1):
+        self.device.baudrate = baud_rate
         self.device.parity = parity
-        self.device.stopbbits = stopbits
+        self.device.stopbbits = stop_bits
         self.device.bytesize = databits
         self.debug("Linecoding set")
 
@@ -151,16 +151,16 @@ class SerialDevice(DeviceClass):
         self.device.send_break()
         self.debug("Break set")
 
-    def setcontrollinestate(self, RTS=None, DTR=None, isFTDI=False):
+    def set_control_line_state(self, RTS=None, DTR=None, isFTDI=False):
         if RTS == 1:
             self.device.setRTS(RTS)
         if DTR == 1:
             self.device.setDTR(DTR)
         self.debug("Linecoding set")
 
-    def write(self, command, pktsize=None):
-        if pktsize is None:
-            pktsize = 512
+    def write(self, command, data_pack_size=None):
+        if data_pack_size is None:
+            data_pack_size = 512
         if isinstance(command, str):
             command = bytes(command, 'utf-8')
         pos = 0
@@ -181,10 +181,10 @@ class SerialDevice(DeviceClass):
             i = 0
             while pos < len(command):
                 try:
-                    ctr = self.device.write(command[pos:pos + pktsize])
+                    ctr = self.device.write(command[pos:pos + data_pack_size])
                     if ctr <= 0:
                         self.info(ctr)
-                    pos += pktsize
+                    pos += data_pack_size
                 except Exception as err:
                     self.debug(str(err))
                     # print("Error while writing")
@@ -269,10 +269,10 @@ class SerialDevice(DeviceClass):
                 self.verify_data(res[:resplen], "RX:")
         return res[:resplen]
 
-    def usb_write(self, data, pktsize=None):
-        if pktsize is None:
-            pktsize = len(data)
-        res = self.write(data, pktsize)
+    def usb_write(self, data, data_pack_size=None):
+        if data_pack_size is None:
+            data_pack_size = len(data)
+        res = self.write(data, data_pack_size)
         self.device.flush()
         return res
 

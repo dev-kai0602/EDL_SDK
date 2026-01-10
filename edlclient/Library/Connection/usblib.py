@@ -101,7 +101,7 @@ class usb_class(DeviceClass):
                 pass
             del windows_dir
 
-    def getInterfaceCount(self):
+    def get_interface_count(self):
         if self.vid is not None:
             self.device = usb.core.find(idVendor=self.vid, idProduct=self.pid, backend=self.backend)
             if self.device is None:
@@ -119,18 +119,18 @@ class usb_class(DeviceClass):
             self._logger.error("No device detected. Is it connected ?")
         return 0
 
-    def set_line_coding(self, baudrate=None, parity=0, databits=8, stopbits=1):
+    def set_line_coding(self, baud_rate=None, parity=0, databits=8, stop_bits=1):
         sbits = {1: 0, 1.5: 1, 2: 2}
         dbits = {5, 6, 7, 8, 16}
         pmodes = {0, 1, 2, 3, 4}
         brates = {300, 600, 1200, 2400, 4800, 9600, 14400,
                   19200, 28800, 38400, 57600, 115200, 230400}
 
-        if stopbits is not None:
-            if stopbits not in sbits.keys():
+        if stop_bits is not None:
+            if stop_bits not in sbits.keys():
                 valid = ", ".join(str(k) for k in sorted(sbits.keys()))
                 raise ValueError("Valid stop_bits are " + valid)
-            self.stopbits = stopbits
+            self.stopbits = stop_bits
         else:
             self.stopbits = 0
 
@@ -150,14 +150,14 @@ class usb_class(DeviceClass):
         else:
             self.parity = 0
 
-        if baudrate is not None:
-            if baudrate not in brates:
+        if baud_rate is not None:
+            if baud_rate not in brates:
                 brs = sorted(brates)
-                dif = [abs(br - baudrate) for br in brs]
+                dif = [abs(br - baud_rate) for br in brs]
                 best = brs[dif.index(min(dif))]
                 raise ValueError(
                     "Invalid baudrates, nearest valid is {}".format(best))
-            self.baudrate = baudrate
+            self.baudrate = baud_rate
 
         linecode = [
             self.baudrate & 0xff,
@@ -188,7 +188,7 @@ class usb_class(DeviceClass):
             wValue=0, data_or_wLength=0, wIndex=1)
         self.debug("Break set, {}b sent".format(wlen))
 
-    def setcontrollinestate(self, RTS=None, DTR=None, isFTDI=False):
+    def set_control_line_state(self, RTS=None, DTR=None, isFTDI=False):
         ctrlstate = (2 if RTS else 0) + (1 if DTR else 0)
         if isFTDI:
             ctrlstate += (1 << 8) if DTR is not None else 0
@@ -337,10 +337,10 @@ class usb_class(DeviceClass):
                 time.sleep(2)
             self.connected = False
 
-    def write(self, command, pktsize=None):
-        if pktsize is None:
-            # pktsize = self.EP_OUT.wMaxPacketSize
-            pktsize = MAX_USB_BULK_BUFFER_SIZE
+    def write(self, command, data_pack_size=None):
+        if data_pack_size is None:
+            # data_pack_size = self.EP_OUT.wMaxPacketSize
+            data_pack_size = MAX_USB_BULK_BUFFER_SIZE
         if isinstance(command, str):
             command = bytes(command, 'utf-8')
         pos = 0
@@ -361,10 +361,10 @@ class usb_class(DeviceClass):
             i = 0
             while pos < len(command):
                 try:
-                    ctr = self.EP_OUT.write(command[pos:pos + pktsize])
+                    ctr = self.EP_OUT.write(command[pos:pos + data_pack_size])
                     if ctr <= 0:
                         self.info(ctr)
-                    pos += pktsize
+                    pos += data_pack_size
                 except Exception as err:
                     self.debug(str(err))
                     # print("Error while writing")
@@ -435,10 +435,10 @@ class usb_class(DeviceClass):
         ids = [self.deviceclass(cfg.idVendor, cfg.idProduct) for cfg in dev]
         return ids
 
-    def usb_write(self, data, pktsize=None):
-        if pktsize is None:
-            pktsize = len(data)
-        res = self.write(data, pktsize)
+    def usb_write(self, data, data_pack_size=None):
+        if data_pack_size is None:
+            data_pack_size = len(data)
+        res = self.write(data, data_pack_size)
         # port->flush()
         return res
 

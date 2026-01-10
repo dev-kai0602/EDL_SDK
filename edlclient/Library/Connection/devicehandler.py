@@ -101,36 +101,70 @@ class DeviceClass(abc.ABC, metaclass=LogBase):
             self.debug = null.null_function
     
     def _print(self, *objects, sep: str = ' ', end: str = '\n', file = sys.stdout, flush: bool = False):
-        """ 自定义打印方法，根据enabled_print来决定是否打印
-        
+        """ 受控打印方法，根据enabled_print状态决定是否输出内容。
+
         Args:
-            *object: 待打印的对象（可变位置参数）
-            sep (str): 多个对象之间的分隔符，默认为 ' ' (一个空格)
-            end (str): 打印结束时追加的字符串，默认为 '\n'
-            file (_io.TextIOWrapper): 输出流对象（文件句柄），默认为 sys.stdout
-            flush (bool): 是否强制刷新输出缓冲区，默认为 False (关闭)
+            *objects: 待打印的任意数量对象（可变位置参数）
+            sep (str): 多对象间的分隔符，默认值为单个空格
+            end (str): 打印结束时追加的字符串，默认值为换行符
+            file (_io.TextIOWrapper): 输出流对象，默认值为标准输出（sys.stdout）
+            flush (bool): 是否强制刷新输出缓冲区，默认值为False
+
+        说明:
+            仅当实例的enabled_print属性为True时，才会调用内置print函数输出内容
             
         """
         if self.enabled_print:
             print(*objects, sep, end, file, flush)
     
-    def read(self, length=None, timeout=-1):
+    def read(self, length: int | None = None, timeout: int = -1) -> bytes:
+        """ 通用数据读取方法，封装底层usb_read实现统一读取接口。
+
+        Args:
+            length (int | None): 读取字节数，为None时使用maxsize默认值
+            timeout (int): 读取超时时间（毫秒），-1时使用实例timeout默认值
+
+        Returns:
+            bytes: 从设备读取的二进制数据
+            
+        """
         if timeout == -1:
             timeout = self.timeout
         if length is None:
             length = self.maxsize
         
-        return self.usb_read(length, timeout)
+        return self.usb_read(length, timeout) # TODO: 该方法似乎没实现
     
-    def rdword(self, count=1, little=False):
+    def read_dword(self, count: int = 1, little: bool = False) -> int | tuple[int]:
+        """ 读取指定数量的DWORD（4字节）数据，支持大小端格式。
+
+        Args:
+            count (int): 读取的DWORD数量，默认值1
+            little (bool): 是否使用小端序解析，False为大端序，默认值False
+
+        Returns:
+            int | tuple[int]: 单条数据返回int，多条返回tuple
+            
+        """
         rev = "<" if little else ">"
-        value = self.usb_read(4 * count)
+        value = self.usb_read(4 * count) # TODO: 该方法似乎未实现
         data = unpack(rev + "I" * count, value)
+        
         if count == 1:
             return data[0]
         return data
     
-    def rword(self, count=1, little=False):
+    def read_word(self, count: int = 1, little: bool = False) -> int | list[int]:
+        """ 读取指定数量的WORD（2字节）数据，支持大小端格式。
+
+        Args:
+            count (int): 读取的WORD数量，默认值1
+            little (bool): 是否使用小端序解析，False为大端序，默认值False
+
+        Returns:
+            int | list[int]: 单条数据返回int，多条返回list；读取空数据时返回空列表
+            
+        """
         rev = "<" if little else ">"
         data = []
         for _ in range(count):
@@ -138,28 +172,53 @@ class DeviceClass(abc.ABC, metaclass=LogBase):
             if len(v) == 0:
                 return data
             data.append(unpack(rev + "H", v)[0])
+            
         if count == 1:
             return data[0]
         return data
     
-    def rbyte(self, count=1):
+    def read_byte(self, count: int = 1) -> bytes:
+        """ 读取指定数量的字节数据。
+
+        Args:
+            count (int): 读取的字节数，默认值1
+
+        Returns:
+            bytes: 读取的二进制字节数据
+            
+        """
         return self.usb_read(count)
     
-    def verify_data(self, data, pre="RX:"):
+    def verify_data(self, data: bytes | bytearray | str, pre: str = 'RX:') -> bytes | None:
+        """ 数据校验与日志输出方法，格式化输出二进制/XML数据至日志。
+
+        Args:
+            data (bytes | bytearray | str): 待校验/输出的数据
+            pre (str): 日志前缀标识，默认值'RX:'
+
+        Returns:
+            bytes | None: 处理后的XML数据（若输入为XML格式），否则返回原数据
+
+        说明:
+            1. DEBUG级别下会输出调用栈信息（排除自身与Port类相关栈帧）
+            2. XML格式数据尝试按行解码输出，非XML二进制数据以16进制输出
+            3. 解码失败时自动降级为16进制格式输出
+            
+        """
         if self._logger.level == logging.DEBUG:
             frame = inspect.currentframe()
             stack_trace = traceback.format_stack(frame)
             td = []
             for trace in stack_trace:
-                if "verify_data" not in trace and "Port" not in trace:
+                if 'verify_data' not in trace and 'Port' not in trace:
                     td.append(trace)
             self.debug(td[:-1])
         
         if isinstance(data, bytes) or isinstance(data, bytearray):
-            if data[:5] == b"<?xml":
+            if data[:5] == b'<?xml':
                 try:
-                    rdata = b""
-                    for line in data.split(b"\n"):
+                    rdata = b''
+                    for line in data.split(b'\n'):
                         try:
                             self.debug(pre + line.decode('utf-8'))
                             rdata += line + b"\n"
@@ -167,64 +226,159 @@ class DeviceClass(abc.ABC, metaclass=LogBase):
                             v = hexlify(line)
                             self.debug(pre + v.decode('utf-8'))
                     return rdata
+                
                 except Exception as err:
                     self.debug(str(err))
                     pass
+                
             if logging.DEBUG >= self._logger.level:
                 self.debug(pre + hexlify(data).decode('utf-8'))
+                
         else:
             if logging.DEBUG >= self._logger.level:
                 self.debug(pre + hexlify(data).decode('utf-8'))
+                
         return data
     
     @abc.abstractmethod
     def connect(self, port_name: str = '') -> bool:
-        """
-        连接到设备。
+        """ 抽象方法：建立与设备的连接。
 
         Args:
-            port_name (str, optional): 串口端口名（如COM3、/dev/ttyUSB0），默认空字符串
+            port_name (str, optional): 设备端口名（如COM3、/dev/ttyUSB0），默认空字符串
 
         Returns:
             bool: 连接成功返回True，失败返回False
 
+        子类实现要求:
+            1. 需处理端口不存在、权限不足、设备未响应等异常场景
+            2. 成功连接后需将connected属性设为True
+            
         """
         pass
     
     @abc.abstractmethod
-    def close(self, reset=False):
+    def close(self, reset: bool = False):
+        """ 抽象方法：关闭设备连接。
+
+        Args:
+            reset (bool): 是否在关闭连接时重置设备，默认值False
+
+        子类实现要求:
+            1. 需释放设备句柄和系统资源
+            2. 关闭后需将connected属性设为False
+            3. 重置参数为True时，需执行设备硬件重置操作
+            
+        """
         pass
     
     @abc.abstractmethod
     def flush(self):
+        """ 抽象方法：刷新设备输入/输出缓冲区。
+
+        子类实现要求:
+            需清空底层通信接口的接收和发送缓冲区，确保无残留数据
+            
+        """
         pass
     
     @abc.abstractmethod
     def detect_devices(self):
+        """ 抽象方法：检测可用设备列表。
+
+        Returns:
+            list: 包含可用设备信息的列表（如[(vid, pid, port), ...]）
+
+        子类实现要求:
+            需扫描系统中匹配的USB/串口设备，返回标准化的设备信息
+            
+        """
         pass
     
     @abc.abstractmethod
-    def getInterfaceCount(self):
+    def get_interface_count(self) -> int:
+        """ 抽象方法：获取设备可用接口数量。
+
+        Returns:
+            int: 设备支持的通信接口数量
+            
+        """
         pass
     
     @abc.abstractmethod
-    def set_line_coding(self, baudrate=None, parity=0, databits=8, stopbits=1):
+    def set_line_coding(self, baud_rate: int | None = None, parity: int = 0, databits: int = 8, stop_bits: int = 1):
+        """ 抽象方法：配置串口通信参数。
+
+        Args:
+            baud_rate (int | None): 波特率，为None时使用实例baudrate属性值
+            parity (int): 校验位配置（0=无校验，1=奇校验，2=偶校验），默认值0
+            databits (int): 数据位数量（5/6/7/8），默认值8
+            stop_bits (int): 停止位数量（1/1.5/2），默认值1
+
+        子类实现要求:
+            需将配置参数同步至实例属性和底层硬件
+            
+        """
         pass
     
     @abc.abstractmethod
     def set_break(self):
+        """ 抽象方法：设置串口中断状态。
+
+        子类实现要求:
+            需触发硬件级别的串口Break信号，持续时间符合行业标准
+            
+        """
         pass
         
     @abc.abstractmethod
-    def setcontrollinestate(self, RTS=None, DTR=None, isFTDI=False):
+    def set_control_line_state(self, RTS: int | None = None, DTR: int = None, isFTDI: bool = False):
+        """ 抽象方法：设置串口控制线状态。
+
+        Args:
+            RTS (int | None): RTS（请求发送）线状态，None表示不修改
+            DTR (int | None): DTR（数据终端就绪）线状态，None表示不修改
+            isFTDI (bool): 是否为FTDI芯片设备，默认值False
+
+        子类实现要求:
+            1. 仅修改非None的控制线状态
+            2. FTDI设备需适配专属的控制线操作逻辑
+            
+        """
         pass
     
     @abc.abstractmethod
-    def write(self, command, pktsize=None):
+    def write(self, command: bytes, data_pack_size: int | None = None):
+        """ 抽象方法：发送数据至设备（高层封装）。
+
+        Args:
+            command (bytes): 待发送的二进制数据
+            data_pack_size (int | None): 数据包大小，None时使用默认分包策略
+
+        Returns:
+            int: 实际发送的字节数
+
+        子类实现要求:
+            需封装usb_write方法，实现数据分包、校验等高层逻辑
+            
+        """
         pass
     
     @abc.abstractmethod
-    def usb_write(self, data, pktsize=None):
+    def usb_write(self, data: bytes, data_pack_size: int | None = None) -> int:
+        """ 抽象方法：底层USB数据发送。
+
+        Args:
+            data (bytes): 待发送的原始二进制数据
+            data_pack_size (int | None): 单次发送的数据包大小，None使用设备默认值
+
+        Returns:
+            int: 实际发送的字节数
+
+        子类实现要求:
+            需直接操作USB底层接口，处理发送超时、总线错误等异常
+            
+        """
         pass
     
     @abc.abstractmethod
