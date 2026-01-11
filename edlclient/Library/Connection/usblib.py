@@ -560,7 +560,7 @@ class USBClass(DeviceClass):
             self.info("Warning !")
             
         res = bytearray()
-        loglevel = self.loglevel
+        log_level = self.log_level
         buffer = self.buffer[:resp_len]
         epr = self.EP_IN.read
         extend = res.extend
@@ -568,8 +568,10 @@ class USBClass(DeviceClass):
         # 循环读取直到满足长度
         while len(res) < resp_len:
             try:
-                resp_len = epr(buffer, time_out)
-                extend(buffer[:resp_len])
+                # 从端点读取数据
+                read_len = epr(buffer, time_out)
+                extend(buffer[:read_len])
+                # 达到最大包长则停止（避免无限循环）
                 if resp_len == self.EP_IN.wMaxPacketSize:
                     break
             except usb.core.USBError as e:
@@ -589,9 +591,9 @@ class USBClass(DeviceClass):
                     self.info(repr(e))
                     return b""
 
-        if loglevel == logging.DEBUG:
+        if log_level == logging.DEBUG:
             self.debug(inspect.currentframe().f_back.f_code.co_name + ":" + hex(resp_len))
-            if self.loglevel == logging.DEBUG:
+            if self.log_level == logging.DEBUG:
                 self.verify_data(res[:resp_len], "RX:")
         return res[:resp_len]
 

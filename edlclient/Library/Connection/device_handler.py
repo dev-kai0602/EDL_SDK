@@ -5,6 +5,7 @@
 #
 # !!!!! If you use this code in commercial products, your product is automatically
 # GPLv3 and has to be open sourced under GPLv3 as well. !!!!!
+import pathlib
 from binascii import hexlify
 from struct import unpack
 import traceback
@@ -18,15 +19,22 @@ import inspect
 from edlclient.Library.gpt import LogBase
 from edlclient.Tools import null
 
+class _CompositeMeta(abc.ABCMeta, LogBase):
+    """
+    复合元类：解决 ABCMeta 与 LogBase 的元类冲突
+    必须继承所有父类的元类，且顺序与类继承顺序对应
+    """
+    pass
 
-class DeviceClass(abc.ABC, metaclass=LogBase):
+
+class DeviceClass(abc.ABC, metaclass=_CompositeMeta):
     """抽象设备交互基类，定义硬件设备通信的标准化接口。
 
     该类为特定类型硬件设备（如USB串口设备）的交互提供统一抽象层，包含设备连接、
     数据读写、参数配置、日志输出等核心能力的抽象定义与基础实现。子类需实现所有
     抽象方法以适配具体设备的通信逻辑。
 
-    Attributes:
+    Attribute:
         connected (bool): 设备连接状态标识，True表示已连接
         time_out (int): USB通信默认超时时间（毫秒），默认值1000
         maxsize (int): 默认最大单次读取字节数，默认值512
@@ -47,7 +55,7 @@ class DeviceClass(abc.ABC, metaclass=LogBase):
         
     """
 
-    def __init__(self, log_level: int = logging.INFO, port_config = None, dev_class: int = -1,
+    def __init__(self, log_level: int = logging.INFO, port_config: dict = None, dev_class: int = -1,
                  enabled_log: bool = False, enabled_print: bool = False):
         """ 初始化设备类实例，配置日志与通信基础参数。
 
@@ -90,8 +98,11 @@ class DeviceClass(abc.ABC, metaclass=LogBase):
             self.debug = self._logger.debug
             self._logger.setLevel(log_level)
             if log_level == logging.DEBUG:
-                log_file_name = os.path.join("logs", "log.txt")
-                fh = logging.FileHandler(log_file_name, encoding='utf-8')
+                # 创建日志文件
+                log_file_path = pathlib.Path(os.path.join('logs', 'log.txt'))
+                log_file_path.parent.mkdir(parents=True, exist_ok=True)
+                log_file_path.touch(exist_ok=True)
+                fh = logging.FileHandler(str(log_file_path), encoding='utf-8')
                 self._logger.addHandler(fh)
         else:
             self._logging = null.null_function

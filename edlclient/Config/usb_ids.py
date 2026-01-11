@@ -6,6 +6,7 @@
 # !!!!! If you use this code in commercial products, your product is automatically
 # GPLv3 and has to be open sourced under GPLv3 as well. !!!!!
 
+# TODO: 该数据为原项目给出的数据，有待验证
 # 默认USB设备标识列表（基础版，均无特殊配置参数）
 # 格式：[厂商ID(VID), 产品ID(PID), 配置参数(-1表示无)]
 default_ids = [

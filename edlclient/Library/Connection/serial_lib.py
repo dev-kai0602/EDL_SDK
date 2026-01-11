@@ -5,6 +5,8 @@
 #
 # !!!!! If you use this code in commercial products, your product is automatically
 # GPLv3 and has to be open sourced under GPLv3 as well. !!!!!
+""" 串口通信 """
+
 import sys
 # 跨平台串口缓冲区刷新适配（类Unix系统需termios）
 if not sys.platform.startswith('win32'):
@@ -56,7 +58,7 @@ class SerialDevice(DeviceClass):
         
     """
     
-    def __init__(self, log_level: int = logging.INFO, port_config = None, dev_class: int =-1,
+    def __init__(self, log_level: int = logging.INFO, port_config: list = None, dev_class: int =-1,
                  enabled_log: bool = False, enabled_print: bool = False):
         """ 初始化SerialClass实例.
 
@@ -71,7 +73,7 @@ class SerialDevice(DeviceClass):
         super().__init__(log_level, port_config, dev_class, enabled_log, enabled_print)
         self.is_serial: bool = True
 
-    def connect(self, port_name: str = ""):
+    def connect(self, port_name: str = ''):
         """ 建立串口连接.
 
         若未指定端口名，自动检测匹配VID/PID的串口设备；已连接时先关闭旧连接。
@@ -88,14 +90,14 @@ class SerialDevice(DeviceClass):
             self.close()
             self.connected = False
             
-        if port_name == "":
+        if port_name == '':
             devices = self.detect_devices()
             if len(devices) > 0:
                 port_name = devices[0]
             else:
                 return False
                 
-        if port_name != "":
+        if port_name != '':
             self.device = serial.Serial(baudrate=115200, bytesize=serial.EIGHTBITS,
                                         parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
                                         timeout=50, xonxoff=False, dsrdtr=True, rtscts=True)
@@ -299,7 +301,7 @@ class SerialDevice(DeviceClass):
             self.info("Warning !")
             
         res = bytearray()
-        log_level = self.loglevel
+        log_level = self.log_level
         self.device.timeout = time_out
         device_read = self.device.read
         extend = res.extend

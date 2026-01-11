@@ -51,7 +51,6 @@ class LogBase(type):
 
     def __init__(cls, *args):
         super().__init__(*args)
-        logger_attribute_name = "_" + cls.__name__ + "_logger"
         logger_debuglevel_name = "_" + cls.__name__ + "__debuglevel"
         logger_name = ".".join([c.__name__ for c in cls.mro()[-2::-1]])
         log_config = {
@@ -82,8 +81,8 @@ class LogBase(type):
         logging.config.dictConfig(log_config)
         logger = logging.getLogger(logger_name)
 
-        setattr(cls, logger_attribute_name, logger)
-        setattr(cls, logger_debuglevel_name, cls.debuglevel)
+        setattr(cls, '_logger', logger)
+        setattr(cls, '_debuglevel', cls.debuglevel)
         cls.logsetup = logsetup
 
 
@@ -104,7 +103,7 @@ def logsetup(self, logger, loglevel):
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
-    self.loglevel = loglevel
+    self.log_level = loglevel
     return logger
 
 
