@@ -135,8 +135,8 @@ import sys
 import time
 
 from edlclient.Config.usb_ids import default_ids
-from edlclient.Library.Connection.serial_lib import SerialDevice
-from edlclient.Library.Connection.usblib import USBClass # TODO: AT here
+from edlclient.Library.Connection.seriallib import SerialDevice
+from edlclient.Library.Connection.usblib import USBClass # TODO: At here
 from edlclient.Library.firehose_client import firehose_client
 from edlclient.Library.sahara import sahara
 from edlclient.Library.sahara_defs import cmd_t, sahara_mode_t

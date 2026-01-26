@@ -1,5 +1,5 @@
 # 该项目正在开发中...
-# EDL SDK - Qualcomm Firehose & Sahara Protocol Python SDK
+# QualcommToolsSDK - Qualcomm Firehose & Sahara Protocol Python SDK
 
 # TODO:
 * 成功运行API类测试用例[]
@@ -51,8 +51,3 @@
 ## 📄 许可证
 
 * 本项目基于 GPLv3 许可证发布。详细信息请查看 [LICENSE](LICENSE) 文件
-
-## 🙏 致谢
-
-* 原始项目：[bkerler/edl](https://github.com/bkerler/edl)
-* 所有贡献者

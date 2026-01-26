@@ -5,6 +5,7 @@
 #
 # !!!!! If you use this code in commercial products, your product is automatically
 # GPLv3 and has to be open sourced under GPLv3 as well. !!!!!
+
 import array
 import inspect
 import logging
@@ -99,6 +100,7 @@ class USBClass(DeviceClass):
             
         """
         super().__init__(log_level, port_config, dev_class, enabled_log, enabled_print)
+        self.interface = None
         self.serial_number = serial_number
         self.load_windows_dll() # Windows 平台加载 libusb DLL
         self.EP_IN = None

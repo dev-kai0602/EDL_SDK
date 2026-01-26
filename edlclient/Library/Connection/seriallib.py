@@ -40,7 +40,7 @@ def _reset_input_buffer_org(self):
         termios.tcflush(self.fd, termios.TCIFLUSH)
 
 
-class SerialDevice(DeviceClass):
+class SerialDevice(DeviceClass): # TODO: 该类未测试
     """ 串口通信设备类，继承自DeviceClass，实现跨平台串口通信核心逻辑.
 
     支持串口连接管理、设备自动检测、串口参数配置、数据读写、控制线操作等功能，
@@ -135,10 +135,11 @@ class SerialDevice(DeviceClass):
         """
         ids = []
         for port in serial.tools.list_ports.comports():
-            for usbid in self.port_config:
-                if port.pid == usbid[1] and port.vid == usbid[0]:
+            for usb_id in self.port_config:
+                # print(f'vid: {port.vid} pid: {port.pid}')
+                if port.pid == usb_id[1] and port.vid == usb_id[0]:
                     # port_id = port.location[-1:]
-                    print(f"Detected {hex(port.vid)}:{hex(port.pid)} device at: " + port.device)
+                    self._print(f"Detected {hex(port.vid)}:{hex(port.pid)} device at: " + port.device)
                     ids.append(port.device)
         return sorted(ids)
 
